@@ -1,0 +1,154 @@
+#lang racket
+(require plot)
+(plot-new-window? true)
+(require posn)
+(require racket/include)
+(require racket/shared)
+(require 2htdp/universe)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; DEFINITIONS and CONSTANTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;A Pworld is a (make-pworld p goal)
+
+(define-struct pworld [p goal])
+
+;a Food is a (make-posn Number Number)
+
+
+;a traits is a (make-traits Number Number Number Number)
+
+;speed is a Number 1 - 5
+
+;sight is a Number 1 - 7
+; - pixel sight = sight-trait * 10
+
+;size is a Number 1 - 10
+
+;health is a Number 1 - 100
+
+(define-struct traits [speed sight size health gene])
+
+
+;A gene is a Genomic code (String) used for tracking offspring of the form
+; - (letter [A-Z]) (Number [1-1000])
+; - Examples: F20, A45, B67
+; - Non-examples: 20Z, 500A, A2000
+
+;A fertility is a Real Number 1 - 1000
+
+;K = Super Gene
+
+
+
+; a sim is a (make-sim pworld traits)
+
+(define-struct sim [pworld traits])
+
+
+(define all-genes (list "A" "B" "C" "D" "E" "F"))
+
+;a sims is a ListOfSim
+
+;a field is one of
+; - Food
+; - Food ListOfFood
+
+;a world is a (make-world field sims)
+
+;sim sight = size * sight = radius of sight perimeter
+
+(define-struct world [phase field sims dead])
+
+(define-struct phase [timer])
+
+
+
+(define-struct posn [x y])
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; PLOTTING FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;Sims -> Traits
+
+(define (retrieve-traits w)
+  (map (λ (s) (sim-traits s)) (world-sims w)))
+
+;count-genes: ListOfTraits 1String -> Number
+;counts number of given gene codes
+
+(define (count-genes lot gene)
+  (foldr (λ (t y) (cond [(string=? (substring (traits-gene t) 0 1) gene)
+                         (+ 1 y)]
+                        [else (+ 0 y)])) 0 lot))
+
+;gene-plot: ListOfTraits -> List of List
+;makes trait data plot readable
+
+(define (gene-plot lot genes)
+  (map (λ (g) (list g (count-genes lot g))) genes ))
+
+;surviving-genes: ListOfTraits -> Plot
+(define (surviving-genes lot)
+  (plot (discrete-histogram (gene-plot lot all-genes)
+                            #:label "Surviving Genes")))
+
+
+;surviving-plot: World -> Plot
+;plots number of surviving genes
+
+(define (surviving-plot w)
+  (surviving-genes(retrieve-traits w)))
+
+
+;a Health is a (list 1String Number)
+
+;retrieve-health: LisOfTraits -> ListOfHealth
+;returns list of health values
+(define (retrieve-health lot)
+  (map (λ (t) (list (substring (traits-gene t) 0 1 ) (traits-health t))) lot))
+
+
+
+;average-health: World 1String
+(define (average-health w g)
+  (/(total-health (retrieve-health(retrieve-traits w)) g) (count-genes (retrieve-traits w) g)))
+
+(define (all-average w)
+  (map (λ (g) (list g (average-health w g))) (filter (λ (g) (>= (count-genes (retrieve-traits w) g) 1))
+                                            all-genes)))
+          
+
+(define (total-health loh g)
+  (foldr (λ (h y) (cond [(string=? g (first h))
+                       (+ (first(rest h)) y)]
+                        [else (+ 0 y)])) 0 loh))
+
+                              
+
+(define (health-plot w)
+  (plot (discrete-histogram (all-average w)
+                            #:label "Average Health")))
+
+
+
+;get-gen: NumericString World -> List Of Traits
+;gets all N gen gene traits from living and dead
+
+(define (get-gen n w)
+  (append (filter (λ (s) (and (not(string-contains? (traits-gene(sim-traits s)) "M"))
+                              (string-contains? (traits-gene(sim-traits s)) n))) (world-sims w))
+          (filter (λ (s) (and (not(string-contains? (traits-gene(sim-traits s)) "M"))
+                              (string-contains? (traits-gene(sim-traits s)) n))) (world-dead w))))
+
+
+;average-sight: World -> Plot
+
+(define (average-s
+
+
+
+
+
+                    

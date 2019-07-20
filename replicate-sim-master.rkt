@@ -368,12 +368,18 @@
   (htdp:place-image (htdp:above (htdp:text(string-append "Youngest " (number->string (first (first (furthest-current w))))
                                                          "("
                                                          (number->string (first (rest (first(furthest-current w)))))
-                                                         ")")15 "red")
+                                                         ")")12 "white")
                                                                   
                                 (htdp:text(string-append "Most Populous "(number->string (first(first (rest(furthest-current w)))))
                                                          "("
                                                          (number->string (first(rest (first (rest(furthest-current w))))))
-                                          ")")15 "red")) (/ width 2) 20 (draw-sims(world-sims w))))
+                                          ")")12 "white")
+                                (htdp:text(string-append "Total Population: "(number->string(length(world-sims w))))
+                                          12 "white")
+                                (htdp:text(string-append "Phase: "(number->string(phase-timer(world-phase w))))
+                                          12 "white")
+                                )
+                                 (/ width 2) 30 (draw-sims(world-sims w))))
 
 
 ;draw-world: world -> image

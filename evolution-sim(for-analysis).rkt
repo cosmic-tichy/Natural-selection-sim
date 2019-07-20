@@ -10,7 +10,7 @@
 (require racket/serialize)
 (require racket/include)
 
-(require (file "replicate-sim.rkt"))
+(require (file "replicate-sim-master.rkt"))
 
 (provide (all-defined-out))
 
@@ -482,30 +482,201 @@
                               )) all-genes))
 
 
+;helper functions for plot-all-stat (current-TRAIT)
+;current-TRAIT: World -> List Of Pair
+
+(define (current-speed w)
+  (cond
+    [(=(length (world-sims w)) 0) (list(phase-timer(world-phase w)) 0)]
+    [else 
+  (list (phase-timer(world-phase w))
+  (/(foldr (λ (s y) (+(traits-speed(sim-traits s)) y)) 0 (world-sims w))
+    (length (world-sims w))))]))
+
+(define (current-sight w)
+  (cond
+    [(=(length (world-sims w)) 0) (list(phase-timer(world-phase w)) 0)]
+    [else 
+  (list (phase-timer(world-phase w))
+  (/(foldr (λ (s y) (+(traits-sight(sim-traits s)) y)) 0 (world-sims w))
+    (length (world-sims w))))]))
+
+(define (current-size w)
+  (cond
+    [(=(length (world-sims w)) 0) (list(phase-timer(world-phase w)) 0)]
+    [else 
+  (list (phase-timer(world-phase w))
+        (/(foldr (λ (s y) (+(traits-size(sim-traits s)) y)) 0 (world-sims w))
+          (length (world-sims w))))]))
 
 (define (current-alive w)
+  (cond
+    [(=(length (world-sims w)) 0) (list(phase-timer(world-phase w)) 0)]
+    [else 
   (list (phase-timer(world-phase w))
-  (length (world-sims w))))
+  (length (world-sims w)))]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; GENE STRUCT
+;genes: MUST BE == to all-genes VAR
+
+;a genes is a (make-genes LOP LOP LOP LOP LOP)
+
+(define-struct genes [A B C D E F] #:transparent)
+
+(define empty-genes (make-genes empty empty empty empty empty empty))
+
+(define (gene-population w gene)
+  (list (phase-timer(world-phase w)) (foldr (λ (s y) (if (string=? (substring(traits-gene(sim-traits s))  0 1) gene)
+                             (+ 1 y)
+                             (+ 0 y))) 0 (world-sims w))))
+
+
+;accumulator*: genes is an accumulator, the current population of every mod 5 phase in world
+
+(define (all-gene-populations n genes w)
+  (cond [(= n 0) genes]
+        [(=(modulo n 5) 0) (all-gene-populations (sub1 n)
+                             (make-genes 
+                             (cons (gene-population w "A") (genes-A genes))
+                             (cons (gene-population w "B") (genes-B genes))
+                             (cons (gene-population w "C") (genes-C genes))
+                             (cons (gene-population w "D") (genes-D genes))
+                             (cons (gene-population w "E") (genes-E genes))
+                             (cons (gene-population w "F") (genes-F genes)))
+                             (update-world w))]
+        [else (all-gene-populations (sub1 n) genes (update-world w))]))
+                            
+
 ;accumulator: pop is the list of current modular populations
 
-(define (run-retreive-pop n pop w)
-  (cond [(= n 0) pop]
-        [(=(modulo n 5) 0) (run-retreive-pop (sub1 n) (cons (current-alive w) pop) (update-world w))]
-        [else (run-retreive-pop (sub1 n) pop (update-world w))]))
+;a stat is a (make-stat listofpair listofpair listofpair listofpair)
 
-(define (plot-all-pop w)
-  (lines (run-retreive-pop stop-phase empty w)
-         #:label "Overall Population Change"
-         #:color "red"
-         ;15min
-         ;:y-max 15
-         ;25min
-         ;#:y-max 20
-         ))
+(define-struct stat [pop speed sight size])
 
+(define empty-stat (make-stat empty empty empty empty))
+
+;plot-all-stat: Number Stat World -> Stat
+
+(define (plot-all-stat n st w)
+  (cond [(= n 0) st]
+        [(=(modulo n 5) 0) (plot-all-stat (sub1 n) (make-stat (cons (current-alive w) (stat-pop st))
+                                                               (cons (current-speed w) (stat-speed st))
+                                                               (cons (current-sight w) (stat-sight st))
+                                                               (cons (current-size w) (stat-size st)))
+                                                                (update-world w))]
+        [else (plot-all-stat (sub1 n) st (update-world w))]))
+
+
+;plot-all-phase: File Prefix (string) -> Void
+;sends 4 plots generated from plot-all-stat to directory
 (plot-width 800)
 (plot-height 500)
 (plot-legend-anchor 'top-left)
+
+
+
+(define (plot-all-sim-phase pref)
+  (let ([st (plot-all-stat stop-phase empty-stat init-world1)])
+    (begin
+      (x-axis-ticks? true)
+      (y-axis-ticks? true)
+    (plot-file(lines (stat-pop st)
+                     #:label "Overall Population Change"
+                     #:color "red"  
+                     ;15min
+                     ;:y-max 15
+                     ;25min
+                     ;#:y-max 20
+                     )
+              (string-append pref "pop.png")
+              'png)
+    (plot-file(lines (stat-speed st)
+                     #:label "Average Speed"
+                     #:color "Purple"
+                     ;15min
+                     ;:y-max 15
+                     ;25min
+                     ;#:y-max 20
+                     )
+              (string-append pref "av-speed.png")
+              'png)
+    (plot-file(lines (stat-sight st)
+                     #:label "Average Sight"
+                     #:color "Blue"
+                     ;15min
+                     ;:y-max 15
+                     ;25min
+                     ;#:y-max 20
+                     )
+              (string-append pref "av-sight.png")
+              'png)
+    (plot-file(lines (stat-size st)
+                     #:label "Average Size"
+                     #:color "Green"
+                     ;15min
+                     ;:y-max 15
+                     ;25min
+                     ;#:y-max 20
+                     )
+              (string-append pref "av-size.png")
+              'png))))
+
+
+
+(define (plot-all-gene-phase pref)
+  (let ([w (all-gene-populations stop-phase empty-genes init-world1)])
+    (plot-file (list (lines (genes-A w)
+                            #:label (string-append "Gene A Population Change")
+                            #:color (get-color "A")
+                            ;15min
+                            ;:y-max 15
+                            ;25min
+                            ;#:y-max 20
+                            )
+                     (lines (genes-B w)
+                            #:label (string-append "Gene B Population Change")
+                            #:color (get-color "B")
+                            ;15min
+                            ;:y-max 15
+                            ;25min
+                            ;#:y-max 20
+                            )
+                     (lines (genes-C w)
+                            #:label (string-append "Gene C Population Change")
+                            #:color (get-color "C")
+                            ;15min
+                            ;:y-max 15
+                            ;25min
+                            ;#:y-max 20
+                            )
+                     (lines (genes-D w)
+                            #:label (string-append "Gene D Population Change")
+                            #:color (get-color "D")
+                            ;15min
+                            ;:y-max 15
+                            ;25min
+                            ;#:y-max 20
+                            )
+                     (lines (genes-E w)
+                            #:label (string-append "Gene E Population Change")
+                            #:color (get-color "E")
+                            ;15min
+                            ;:y-max 15
+                            ;25min
+                            ;#:y-max 20
+                            )
+                     (lines (genes-F w)
+                            #:label (string-append "Gene F Population Change")
+                            #:color (get-color "F")
+                            ;15min
+                            ;:y-max 15
+                            ;25min
+                            ;#:y-max 20
+                            ))
+               (string-append pref "gene-populations.png")
+               'png)))
 
 ;plot-all-15: String Number World -> Plots
 ;takes a String (filename prefix) Number (max gens for given stop-phase) and a world and returns file-plots
@@ -526,11 +697,7 @@
                       'png))))
                      
 
-(define (file-all-pop pref w)
-           (plot-file (plot-all-pop w)
-                      (string-append pref "gene-pop.png")
-                      'png))
-                     
+
 
 
         
